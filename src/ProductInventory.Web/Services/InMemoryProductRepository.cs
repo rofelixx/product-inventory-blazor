@@ -13,6 +13,8 @@ public class InMemoryProductRepository : IProductRepository
     private readonly List<Product> _products = new();
     private readonly Lock _lock = new();
 
+    public bool IsHydrated { get; set; }
+
     public InMemoryProductRepository()
     {
         var seed = new (string Name, decimal Price, int Quantity, bool IsActive)[]
@@ -106,6 +108,17 @@ public class InMemoryProductRepository : IProductRepository
         lock (_lock)
         {
             _products.RemoveAll(p => p.Id == id);
+        }
+    }
+
+    public async Task ReplaceAllAsync(IReadOnlyList<Product> products, CancellationToken ct = default)
+    {
+        await Task.Delay(SimulatedLatency, ct);
+
+        lock (_lock)
+        {
+            _products.Clear();
+            _products.AddRange(products.Select(p => p.Clone()));
         }
     }
 }

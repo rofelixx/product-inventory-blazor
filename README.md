@@ -1,6 +1,6 @@
 # Product Inventory (Blazor)
 
-A small Product Inventory management app built with Blazor Web App (Interactive Server render mode), .NET 9. No database, no auth — an in-memory repository stands in for a real backing store, per the challenge brief.
+A small Product Inventory management app built with Blazor Web App (Interactive Server render mode), .NET 9. No database, no auth, an in-memory repository stands in for a real backing store, per the challenge brief.
 
 ## Running it
 

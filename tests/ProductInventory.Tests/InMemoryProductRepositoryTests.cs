@@ -81,6 +81,34 @@ public class InMemoryProductRepositoryTests
     }
 
     [Fact]
+    public async Task ReplaceAllAsync_ReplacesExistingProducts()
+    {
+        var replacement = new[]
+        {
+            new Product { Id = Guid.NewGuid(), Name = "Persisted A", Price = 5m, Quantity = 2 },
+            new Product { Id = Guid.NewGuid(), Name = "Persisted B", Price = 7.5m, Quantity = 0, IsActive = false },
+        };
+
+        await _sut.ReplaceAllAsync(replacement);
+
+        var all = await _sut.GetAllAsync();
+        all.Should().HaveCount(2);
+        all.Should().Contain(p => p.Name == "Persisted A");
+        all.Should().Contain(p => p.Name == "Persisted B");
+        all.Should().NotContain(p => p.Name == "Mechanical Keyboard", "the seeded catalog should be fully replaced");
+    }
+
+    [Fact]
+    public void IsHydrated_DefaultsFalse_AndIsSettable()
+    {
+        _sut.IsHydrated.Should().BeFalse();
+
+        _sut.IsHydrated = true;
+
+        _sut.IsHydrated.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetByIdAsync_ReturnsClone_NotSharedReference()
     {
         var added = await _sut.AddAsync(new Product { Name = "Clone Check", Price = 1m, Quantity = 1 });

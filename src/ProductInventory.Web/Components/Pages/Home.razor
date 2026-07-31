@@ -1,9 +1,11 @@
 @page "/"
 @rendermode InteractiveServer
+@using System.Text.Json
 @using ProductInventory.Web.Components.Shared
 @using ProductInventory.Web.Models
 @using ProductInventory.Web.Services
 @inject IProductRepository Repository
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>Product Inventory</PageTitle>
@@ -53,6 +55,8 @@ else
                OnCancel="CloseDeleteConfirm" />
 
 @code {
+    private const string StorageKey = "productInventory.products";
+
     private IReadOnlyList<Product> _allProducts = Array.Empty<Product>();
     private IReadOnlyList<Product> _visibleProducts = Array.Empty<Product>();
 
@@ -76,6 +80,32 @@ else
         await LoadProductsAsync();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || Repository.IsHydrated) return;
+
+        // Mark hydrated before awaiting anything: this is a shared (Singleton) repository, so
+        // only the first tab to render after an app start should import its saved copy — later
+        // tabs must not re-overwrite the now-shared state with their own local snapshot.
+        Repository.IsHydrated = true;
+
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("localStorage.getItem", StorageKey);
+            if (string.IsNullOrWhiteSpace(json)) return;
+
+            var products = JsonSerializer.Deserialize<List<Product>>(json);
+            if (products is null || products.Count == 0) return;
+
+            await Repository.ReplaceAllAsync(products);
+            await LoadProductsAsync();
+        }
+        catch (Exception)
+        {
+            // localStorage unavailable, disabled, or corrupted — fall back to seeded data.
+        }
+    }
+
     private async Task LoadProductsAsync()
     {
         _isLoading = true;
@@ -95,6 +125,19 @@ else
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private async Task PersistToLocalStorageAsync()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(_allProducts);
+            await JS.InvokeVoidAsync("localStorage.setItem", StorageKey, json);
+        }
+        catch (Exception)
+        {
+            // Best-effort persistence — a failed write shouldn't disrupt the UI.
         }
     }
 
@@ -161,6 +204,7 @@ else
 
             _isFormOpen = false;
             await LoadProductsAsync();
+            await PersistToLocalStorageAsync();
         }
         catch (Exception ex)
         {
@@ -197,6 +241,7 @@ else
             _isConfirmOpen = false;
             _productPendingDeletion = null;
             await LoadProductsAsync();
+            await PersistToLocalStorageAsync();
         }
         catch (Exception ex)
         {

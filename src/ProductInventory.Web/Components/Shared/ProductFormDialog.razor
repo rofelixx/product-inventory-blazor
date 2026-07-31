@@ -1,0 +1,69 @@
+@using ProductInventory.Web.Models
+
+@if (IsOpen)
+{
+    <div class="modal-backdrop" @onclick="() => OnCancel.InvokeAsync()">
+        <div class="modal-dialog" @onclick:stopPropagation="true">
+            <h2>@(IsEdit ? "Edit product" : "New product")</h2>
+
+            <EditForm Model="Model" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-field">
+                    <label for="name">Name</label>
+                    <InputText id="name" @bind-Value="Model.Name" maxlength="100" />
+                    <ValidationMessage For="() => Model.Name" />
+                </div>
+
+                <div class="form-field">
+                    <label for="price">Price</label>
+                    <InputNumber id="price" @bind-Value="Model.Price" step="0.01" />
+                    <ValidationMessage For="() => Model.Price" />
+                </div>
+
+                <div class="form-field">
+                    <label for="quantity">Quantity</label>
+                    <InputNumber id="quantity" @bind-Value="Model.Quantity" />
+                    <ValidationMessage For="() => Model.Quantity" />
+                </div>
+
+                <div class="form-field form-field-checkbox">
+                    <label>
+                        <InputCheckbox @bind-Value="Model.IsActive" />
+                        Active
+                    </label>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" @onclick="() => OnCancel.InvokeAsync()" disabled="@IsSaving">Cancel</button>
+                    <button type="submit" class="btn btn-primary" disabled="@IsSaving">
+                        @(IsSaving ? "Saving..." : "Save")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public bool IsOpen { get; set; }
+
+    [Parameter, EditorRequired]
+    public Product Model { get; set; } = new();
+
+    [Parameter]
+    public bool IsEdit { get; set; }
+
+    [Parameter]
+    public bool IsSaving { get; set; }
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private Task HandleValidSubmit() => OnSave.InvokeAsync();
+}

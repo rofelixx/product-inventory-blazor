@@ -1,0 +1,216 @@
+@page "/"
+@rendermode InteractiveServer
+@using ProductInventory.Web.Components.Shared
+@using ProductInventory.Web.Models
+@using ProductInventory.Web.Services
+@inject IProductRepository Repository
+@implements IDisposable
+
+<PageTitle>Product Inventory</PageTitle>
+
+<h1>Product Inventory</h1>
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-error">
+        @_errorMessage
+        <button type="button" class="alert-dismiss" @onclick="() => _errorMessage = null">&times;</button>
+    </div>
+}
+
+<DashboardStats Products="_allProducts" />
+
+<div class="toolbar">
+    <input class="search-input"
+           placeholder="Search by name..."
+           value="@_searchTerm"
+           @oninput="OnSearchInput" />
+
+    <button class="btn btn-primary" @onclick="OpenCreateDialog">+ Add product</button>
+</div>
+
+@if (_isLoading)
+{
+    <LoadingSpinner Text="Loading products..." />
+}
+else
+{
+    <ProductTable Products="_visibleProducts" OnEdit="OpenEditDialog" OnDeleteRequest="OpenDeleteConfirm" />
+}
+
+<ProductFormDialog IsOpen="_isFormOpen"
+                    Model="_editingProduct"
+                    IsEdit="_isEditMode"
+                    IsSaving="_isSaving"
+                    OnSave="SaveProductAsync"
+                    OnCancel="CloseFormDialog" />
+
+<ConfirmDialog IsOpen="_isConfirmOpen"
+               Title="Delete product"
+               Message="@($"Delete '{_productPendingDeletion?.Name}'? This cannot be undone.")"
+               IsBusy="_isDeleting"
+               OnConfirm="ConfirmDeleteAsync"
+               OnCancel="CloseDeleteConfirm" />
+
+@code {
+    private IReadOnlyList<Product> _allProducts = Array.Empty<Product>();
+    private IReadOnlyList<Product> _visibleProducts = Array.Empty<Product>();
+
+    private string _searchTerm = string.Empty;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    private bool _isFormOpen;
+    private bool _isEditMode;
+    private bool _isSaving;
+    private Product _editingProduct = new();
+
+    private bool _isConfirmOpen;
+    private bool _isDeleting;
+    private Product? _productPendingDeletion;
+
+    private CancellationTokenSource? _searchDebounceCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductsAsync();
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var products = await Repository.GetAllAsync();
+            _allProducts = products;
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load products: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        _visibleProducts = string.IsNullOrWhiteSpace(_searchTerm)
+            ? _allProducts
+            : _allProducts.Where(p => p.Name.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private async void OnSearchInput(ChangeEventArgs e)
+    {
+        _searchTerm = e.Value?.ToString() ?? string.Empty;
+
+        _searchDebounceCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _searchDebounceCts = cts;
+
+        try
+        {
+            await Task.Delay(250, cts.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        if (cts.IsCancellationRequested) return;
+
+        ApplyFilter();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OpenCreateDialog()
+    {
+        _editingProduct = new Product { IsActive = true };
+        _isEditMode = false;
+        _isFormOpen = true;
+    }
+
+    private void OpenEditDialog(Product product)
+    {
+        _editingProduct = product.Clone();
+        _isEditMode = true;
+        _isFormOpen = true;
+    }
+
+    private void CloseFormDialog()
+    {
+        _isFormOpen = false;
+    }
+
+    private async Task SaveProductAsync()
+    {
+        _isSaving = true;
+        _errorMessage = null;
+
+        try
+        {
+            if (_isEditMode)
+                await Repository.UpdateAsync(_editingProduct);
+            else
+                await Repository.AddAsync(_editingProduct);
+
+            _isFormOpen = false;
+            await LoadProductsAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to save product: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void OpenDeleteConfirm(Product product)
+    {
+        _productPendingDeletion = product;
+        _isConfirmOpen = true;
+    }
+
+    private void CloseDeleteConfirm()
+    {
+        _isConfirmOpen = false;
+        _productPendingDeletion = null;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_productPendingDeletion is null) return;
+
+        _isDeleting = true;
+        _errorMessage = null;
+
+        try
+        {
+            await Repository.DeleteAsync(_productPendingDeletion.Id);
+            _isConfirmOpen = false;
+            _productPendingDeletion = null;
+            await LoadProductsAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to delete product: {ex.Message}";
+        }
+        finally
+        {
+            _isDeleting = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _searchDebounceCts?.Cancel();
+        _searchDebounceCts?.Dispose();
+    }
+}

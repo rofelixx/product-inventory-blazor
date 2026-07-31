@@ -1,0 +1,23 @@
+@using ProductInventory.Web.Models
+
+<div class="dashboard">
+    <div class="stat-card">
+        <span class="stat-label">Total Products</span>
+        <span class="stat-value">@Products.Count</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Active Products</span>
+        <span class="stat-value">@Products.Count(p => p.IsActive)</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Inventory Value</span>
+        <span class="stat-value">@InventoryValue.ToString("C")</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Product> Products { get; set; } = Array.Empty<Product>();
+
+    private decimal InventoryValue => Products.Sum(p => p.Price * p.Quantity);
+}

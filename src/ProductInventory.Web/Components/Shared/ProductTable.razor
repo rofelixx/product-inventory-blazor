@@ -1,0 +1,52 @@
+@using ProductInventory.Web.Models
+
+@if (Products.Count == 0)
+{
+    <p class="empty-state">No products found.</p>
+}
+else
+{
+    <div class="table-wrapper">
+        <table class="product-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Active</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var product in Products)
+                {
+                    <tr>
+                        <td data-label="Name">@product.Name</td>
+                        <td data-label="Price">@product.Price.ToString("C")</td>
+                        <td data-label="Quantity">@product.Quantity</td>
+                        <td data-label="Active">
+                            <span class="badge @(product.IsActive ? "badge-active" : "badge-inactive")">
+                                @(product.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </td>
+                        <td class="actions" data-label="Actions">
+                            <button class="btn btn-secondary" @onclick="() => OnEdit.InvokeAsync(product)">Edit</button>
+                            <button class="btn btn-danger" @onclick="() => OnDeleteRequest.InvokeAsync(product)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Product> Products { get; set; } = Array.Empty<Product>();
+
+    [Parameter]
+    public EventCallback<Product> OnEdit { get; set; }
+
+    [Parameter]
+    public EventCallback<Product> OnDeleteRequest { get; set; }
+}

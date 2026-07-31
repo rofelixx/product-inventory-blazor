@@ -1,0 +1,36 @@
+@if (IsOpen)
+{
+    <div class="modal-backdrop" @onclick="() => OnCancel.InvokeAsync()">
+        <div class="modal-dialog modal-dialog-small" @onclick:stopPropagation="true">
+            <h2>@Title</h2>
+            <p>@Message</p>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" @onclick="() => OnCancel.InvokeAsync()" disabled="@IsBusy">Cancel</button>
+                <button type="button" class="btn btn-danger" @onclick="() => OnConfirm.InvokeAsync()" disabled="@IsBusy">
+                    @(IsBusy ? "Deleting..." : "Delete")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Confirm";
+
+    [Parameter]
+    public string Message { get; set; } = "Are you sure?";
+
+    [Parameter]
+    public bool IsBusy { get; set; }
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+}

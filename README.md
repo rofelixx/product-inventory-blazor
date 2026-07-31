@@ -52,8 +52,7 @@ tests/ProductInventory.Tests/         xUnit tests for the repository and model v
 
 - **Error handling** — repository calls in `Home.razor` are wrapped in try/catch; failures surface as a dismissible banner instead of crashing the page.
 - **Responsive UI** — the product table reflows into stacked cards below 640px; the toolbar and dashboard grid wrap naturally on small screens.
-- **Unit tests** — `InMemoryProductRepositoryTests` covers CRUD, search, latency, and the clone-on-read isolation guarantee; `ProductValidationTests` covers every validation rule on `Product`.
+- **Unit tests** — `InMemoryProductRepositoryTests` covers CRUD, search, latency, `ReplaceAllAsync`, and the clone-on-read isolation guarantee; `ProductValidationTests` covers every validation rule on `Product`.
+- **Local storage persistence** — every create/edit/delete serializes the full product list to the browser's `localStorage` (key `productInventory.products`) via `IJSRuntime`, from `PersistToLocalStorageAsync()` in `Home.razor`. On the first client render after an app start, `OnAfterRenderAsync` reads that key back and, if present, replaces the repository's contents (`IProductRepository.ReplaceAllAsync`) before the page renders — so a reload keeps your data instead of resetting to the 10 seeded products. JS interop failures (storage disabled, corrupted JSON) are swallowed silently, falling back to the seeded data.
 
-## Bonus items not implemented
-
-- **Local storage persistence** — out of scope for this pass; state resets on app restart (in-memory by design, per the brief). Would be added via `IJSRuntime` + `localStorage` interop reading/writing the product list on startup/mutation.
+  **Known limitation**: `IProductRepository` is registered as a `Singleton`, so its state is shared across every browser/tab connecting to the app — not per-user — while `localStorage` is per-browser. `IProductRepository.IsHydrated` guards against every new tab re-importing its own local copy over the already-shared state: only the *first* tab to render after an app start triggers hydration. This keeps the shared-state model coherent, at the cost of later tabs not re-syncing their own separately-saved snapshot. The JS interop calls themselves aren't unit-tested (this project doesn't use bUnit); the underlying `ReplaceAllAsync`/`IsHydrated` repository logic is.
